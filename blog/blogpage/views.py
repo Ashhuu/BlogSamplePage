@@ -41,6 +41,8 @@ def home(request):
     tempdata = data
     latest = tempdata[0]
     recentlist = [latest]
+    searchlist = []
+    categoryCount = countCategory(data)
     current_year, current_month1, current_date, current_hour, current_min, current_sec = splitdate(latest['date'])
     dmy = (current_year + "/" + current_month1 + "/" +
            current_date + " " + current_hour + ":" + current_min + ":" + current_sec)
@@ -63,13 +65,19 @@ def home(request):
             recentlist.append(latest)
     recent = recentlist[:4]
     category = request.GET.get('category', 1)
+    search = request.GET.get('search', 1)
     categoryList = []
     page = request.GET.get('page', 1)
-    if category is not 1:
+    if category is not 1 and search is 1:
         for i in tempdata:
             if i['category'] == category:
                 categoryList.append(i)
         paginator = Paginator(categoryList, 2)
+    elif search is not 1:
+        for i in tempdata:
+            if search in i['title'] or search in i['desc']:
+                searchlist.append(i)
+                paginator = Paginator(searchlist, 2)
     else:
         paginator = Paginator(tempdata, 2)
     try:
@@ -78,7 +86,8 @@ def home(request):
         blog = paginator.page(1)
     except EmptyPage:
         blog = paginator.page(paginator.num_pages)
-    return render(request, 'blogpage/blog.html', {'blog': blog, 'recent': recent[::-1]})
+    return render(request, 'blogpage/blog.html', {'blog': blog, 'recent': recent[::-1], 'cData': categoryCount})
+
 
 def splitdate(dt):
     a = dt.split('-')
@@ -87,10 +96,24 @@ def splitdate(dt):
     d = c[2].split('.')
     return a[0], a[1], b[0], c[0], c[1], d[0]
 
+
 def fetchAPI():
     r = requests.get('http://saha2201.pythonanywhere.com/api/article/?format=json')
     r2 = r.json()
     return r2
+
+
+def countCategory(data):
+    addedCategory = []
+    count = {}
+    for i in data:
+        if i['category'] in addedCategory:
+            counter = count[i['category']]
+            count.update({i['category']: counter+1})
+        else:
+            addedCategory.append(i['category'])
+            count.update({i['category']: 1})
+    return count
 
 
 def test(request):
