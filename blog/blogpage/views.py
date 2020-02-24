@@ -35,34 +35,62 @@ def get_month(num):
     else:
         raise ValueError
 
+
 def home(request):
     data = fetchAPI()
     tempdata = data
+    latest = tempdata[0]
+    recentlist = [latest]
+    current_year, current_month1, current_date, current_hour, current_min, current_sec = splitdate(latest['date'])
+    dmy = (current_year + "/" + current_month1 + "/" +
+           current_date + " " + current_hour + ":" + current_min + ":" + current_sec)
+    latestdmy = datetime.strptime(dmy, '%Y/%m/%d %H:%M:%S')
     for i in tempdata:
-        a = i['date'].split('-')
-        b = a[2].split('T')
-        #c = b[1].split(':')
+        current_year, current_month1, current_date, current_hour, current_min, current_sec = splitdate(i['date'])
         desc = i['content'][0:285] + "..."
-        current_month = get_month(a[1])
-        i.update({'month':current_month})
-        i.update({'day': b[0]})
+        current_month = get_month(current_month1)
+        i.update({'month': current_month})
+        i.update({'monthN': current_month1})
+        i.update({'day': current_date})
+        i.update({'year': current_year})
         i.update({'desc': desc})
+        dmy = (current_year + "/" + current_month1 + "/" +
+               current_date + " " + current_hour + ":" + current_min + ":" + current_sec)
+        dmy1 = datetime.strptime(dmy, '%Y/%m/%d %H:%M:%S')
+        if dmy1 > latestdmy:
+            latestdmy = dmy1
+            latest = i
+            recentlist.append(latest)
+    recent = recentlist[:4]
+    category = request.GET.get('category', 1)
+    categoryList = []
     page = request.GET.get('page', 1)
-    paginator = Paginator(tempdata, 2)
+    if category is not 1:
+        for i in tempdata:
+            if i['category'] == category:
+                categoryList.append(i)
+        paginator = Paginator(categoryList, 2)
+    else:
+        paginator = Paginator(tempdata, 2)
     try:
         blog = paginator.page(page)
     except PageNotAnInteger:
         blog = paginator.page(1)
     except EmptyPage:
         blog = paginator.page(paginator.num_pages)
-    return render(request, 'blogpage/blog.html', {'blog': blog})
+    return render(request, 'blogpage/blog.html', {'blog': blog, 'recent': recent[::-1]})
+
+def splitdate(dt):
+    a = dt.split('-')
+    b = a[2].split('T')
+    c = b[1].split(':')
+    d = c[2].split('.')
+    return a[0], a[1], b[0], c[0], c[1], d[0]
 
 def fetchAPI():
     r = requests.get('http://saha2201.pythonanywhere.com/api/article/?format=json')
     r2 = r.json()
     return r2
-    '''r3 = r2['product']
-    r4 = r3[1]'''
 
 
 def test(request):
